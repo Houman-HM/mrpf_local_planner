@@ -1,0 +1,7 @@
+<library path="lib/libmrpf_local_planner">
+	<class name ="MRPF_local_planner/MRPFPlannerROS" type ="mrpf_local_planner::MRPFPlannerROS" base_class_type= "nav_core::BaseLocalPlanner">
+		<description>
+			MRPF Plugin for BaseLocalPlanner that allows you to follow the global path as it is.
+		</description>
+	</class>
+</library>

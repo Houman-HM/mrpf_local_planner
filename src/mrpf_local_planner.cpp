@@ -1,24 +1,51 @@
 
 #include "mrpf_local_planner/mrpf_local_planner.h"
-
+#include <yaml-cpp/yaml.h>
+#include <math.h>
 // pluginlib macros (defines, ...)
 #include <pluginlib/class_list_macros.h>
 
 PLUGINLIB_DECLARE_CLASS(mrpf_local_planner, MRPFPlannerROS, mrpf_local_planner::MRPFPlannerROS, nav_core::BaseLocalPlanner)
 
-namespace mrpf_local_planner{
+namespace mrpf_local_planner
+{
 
-	MRPFPlannerROS::MRPFPlannerROS() : costmap_ros_(NULL), tf_(NULL), initialized_(false) {}
+MRPFPlannerROS::MRPFPlannerROS()
+: costmap_ros_(NULL),
+  tf_(NULL), 
+	initialized_(false) 
+{}
 
-	MRPFPlannerROS::MRPFPlannerROS(std::string name, tf::TransformListener* tf, costmap_2d::Costmap2DROS* costmap_ros)
-         : costmap_ros_(NULL), tf_(NULL), initialized_(false)
-         {
-		// initialize planner
-		initialize(name, tf, costmap_ros);
-         }
+MRPFPlannerROS::MRPFPlannerROS(std::string name, tf::TransformListener* tf, costmap_2d::Costmap2DROS* costmap_ros)
+: costmap_ros_(NULL), tf_(NULL), initialized_(false)
+{
+	// initialize planner
+	initialize(name, tf, costmap_ros);
+}
 
-	MRPFPlannerROS::~MRPFPlannerROS() {}
+MRPFPlannerROS::~MRPFPlannerROS() {}
 
+
+void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> path)
+{
+    
+	for (int i = 0; i < path.size(); i++)
+	{
+		tf::Quaternion q(
+		path[i].pose.orientation.x,
+		path[i].pose.orientation.y,
+		path[i].pose.orientation.z,
+		path[i].pose.orientation.w);
+		tf::Matrix3x3 m(q);
+		double r, p, y;
+		m.getRPY(r, p, y);
+		double xx= path[i].pose.position.x;
+		double yy= path[i].pose.position.y;
+		yaw.push_back(y);
+		main_trajectory_x_.push_back(xx);
+		main_trajectory_y_.push_back(yy);
+  }
+}
 	void MRPFPlannerROS::initialize(std::string name, tf::TransformListener* tf, costmap_2d::Costmap2DROS* costmap_ros)
 	{
 
@@ -26,54 +53,13 @@ namespace mrpf_local_planner{
 		if(!initialized_)
 		{
 
-		beginning2 = ros::Time::now().toSec();
-
 		// copy adress of costmap and Transform Listener (handed over from move_base)
 		costmap_ros_ = costmap_ros;
 		tf_ = tf;
 
+		robot1_ = Robot("robot1", -0.6, 0.0, 0.0, "path1", "clearbot1/cmd_vel");
+    robot2_ = Robot("robot2", -0.6, 0.0, 0.0, "path2", "clearbot2/cmd_vel");
 
-		// subscribe to topics (to get odometry information, we need to get a handle to the topic in the global namespace)
-		ros::NodeHandle gn;
-		amcl_sub = gn.subscribe("amcl_pose", 100, &MRPFPlannerROS::amclCallback, this);
-        	path_pub = gn.advertise<visualization_msgs::Marker>("visualization_marker", 10);
-
-		//initializing the visualization markers
-		points.header.frame_id = "/map";
-	 
-		points.header.stamp = ros::Time::now();
-	 
-		points.ns = "path_drawing";
-	 
-		points.action = visualization_msgs::Marker::ADD;
-	 
-		points.id = 0;
-	 
-		//points.pose.position.x = now.x;
-		//points.pose.position.y = now.y;
-		//points.pose.position.z = 0.5;
-	 
-		points.type = visualization_msgs::Marker::POINTS;
-	 
-		points.scale.x = 0.1;
-		points.scale.y = 0.1;
-	 
-		points.color.g = 1.0f;
-		points.color.a = 1.0;
-
-		average = 0;
-		num = 0;
-		firstTime = 1;
-		number1 = 1;
-		hasStarted = 0;
-                pathLength = 0;
-		p = 0;
-		minus = 0;
-		//beforee = ros::Time::now().toSec();
-
-		//open file
-		file.open("/home/adriana/adrianaTFG/mrpf_cs/mrpf_cs_10.txt", ios::out);
-		// set initialized flag
 		initialized_ = true;
 
 		// this is only here to make this process visible in the rxlogger right from the start
@@ -89,43 +75,49 @@ namespace mrpf_local_planner{
 	bool MRPFPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan)
 	{
 
-		// check if plugin initialized
-		if(!initialized_)
-		{
-		ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
-		return false;
-		}
+  // check if plugin initialized
+  if(!initialized_)
+  {
+  ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+  return false;
+  }
 
 
-		//reset next counter
-		count = 1; 
+  //reset next counter
+  if (!plan_received_)
+  {
+    plan_ = orig_global_plan;
+    quaternionToRPY(plan_);
 
-		//set plan, length and next goal
-		plan = orig_global_plan; 
-		length = (plan).size();  
-		setNext(); 
+    
+    dt_ = 30.0/main_trajectory_x_.size();
+    std::cout <<dt_<<std::endl;
+    for (int i = 0; i < plan_.size(); i++)
+    {
+      robot1_.transformed_x_.push_back(main_trajectory_x_[i] + robot1_.vertex_x_ * cos(yaw[i]));
+      robot1_.transformed_y_.push_back(main_trajectory_y_[i] + robot1_.vertex_y_ * sin(yaw[i]));
+      robot2_.transformed_x_.push_back(main_trajectory_x_[i] + robot2_.vertex_x_ * cos(yaw[i]));
+      robot2_.transformed_y_.push_back(main_trajectory_y_[i] + robot2_.vertex_y_ * sin(yaw[i]));
+    }
 
-		ending2 = ros::Time::now().toSec();
-		//ROS_INFO("between: %f", (ros::Time::now().toSec()-beforee)/2);
-		//average += (ros::Time::now().toSec()-beforee);
-		//num++;
 
-		if(number1){
-			four = ros::Time::now().toSec()-beginning2;
-			number1 = 0;
-		}
-		ROS_INFO("minus: %f", (minus));
-		ROS_INFO("four: %f", (four));
-		ROS_INFO("between2: %f", (ending2-beginning2-minus-four));
-		average += 0.05;//(ending2-beginning2-minus-four);
-		//num++;
+    for (int i = 0; i < main_trajectory_x_.size()-1; i++)
+    {
+      robot1_.vx_.push_back((robot1_.transformed_x_[i+1]-robot1_.transformed_x_[i])/dt_);
+      robot1_.vy_.push_back((robot1_.transformed_y_[i+1]-robot1_.transformed_y_[i])/dt_);
+      robot2_.vx_.push_back((robot2_.transformed_x_[i+1]-robot2_.transformed_x_[i])/dt_);
+      robot2_.vy_.push_back((robot2_.transformed_y_[i+1]-robot2_.transformed_y_[i])/dt_);
 
-		p++;
-		minus = p;//0.2*p;
+    }
+    //     for(int i = 0; i < robot1_.vx_.size(); i++)
+    // {
+    //   std::cout<< robot1_.vx_[i] << std::endl;
+    //   std::cout<< robot1_.vy_[i] << std::endl;
+    // }
+      
+    plan_received_ = true;
+  }
 
-		//beforee = ros::Time::now().toSec(); 
-
-		// set goal as not reached
 		goal_reached_ = false;
 
 		return true;
@@ -142,7 +134,22 @@ namespace mrpf_local_planner{
 		return false;
 		}
 
-
+		if (!velocity_executed_)
+		{
+			for(int i = 0; i < robot1_.vx_.size(); i++)
+			{
+				geometry_msgs::Twist r1;
+        geometry_msgs::Twist r2;
+        r1.linear.x = robot1_.vx_[i];
+        r1.linear.y = robot1_.vy_[i];
+        r2.linear.x = robot2_.vx_[i];
+        r2.linear.y = robot2_.vy_[i];
+        robot1_.cmd_vel_publisher_.publish(r1);
+        robot2_.cmd_vel_publisher_.publish(r2);
+        ros::Duration(dt_).sleep();
+			}
+			velocity_executed_ = true;
+		}
 
 		return true;
 
@@ -162,205 +169,17 @@ namespace mrpf_local_planner{
 
 	}
 
-	void MRPFPlannerROS::amclCallback(const geometry_msgs::PoseWithCovarianceStamped::Ptr& msg)
-	{
 
-		ROS_INFO("Seq: [%d]", msg->header.seq);
-
-		pos before;
-		if(hasStarted){
-			before.x = now.x;
-			before.y = now.y;
-		}
-
-		now.x = msg->pose.pose.position.x;
-		now.y = msg->pose.pose.position.y;
-		now.az = getYaw(*msg); 
-		setNowError();
-
-		if(hasStarted){
-			pathLength += std::sqrt((now.x-before.x)*(now.x-before.x) + (now.y-before.y)*(now.y-before.y));
-			ROS_INFO("%f, %f, %f", stopTime, startTime, pathLength);
-		}
-
-		pathVisualization();
-		
-		hasStarted = 1;
-
-	}
-
-
-	double MRPFPlannerROS::getYaw(geometry_msgs::PoseWithCovarianceStamped msg)
-	{
-
-		double q[4];
-		q[0]= msg.pose.pose.orientation.x;
-		q[1]= msg.pose.pose.orientation.y;
-		q[2]= msg.pose.pose.orientation.z;
-		q[3]= msg.pose.pose.orientation.w;
-
-		double t3 = +2.0 * (q[3] * q[2] + q[0] * q[1]);
-		double t4 = +1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]);  
-
-		return std::atan2(t3, t4);
-
-	}
-
-	void MRPFPlannerROS::setVel()
-	{
-
-		// the output speed has been adjusted with a P regulator, that depends on how close we are to our current goal
-		cmd.linear.x= distance;
-	
-		// keeping a small angular speed so that the movement is smooth //note that nError.az is small here
-		cmd.angular.z= 0.75*(nError.az);
-
-	}
-
-	void MRPFPlannerROS::setRot()
-	{
-
-
-
-		// the angular speed has been adjusted with a P regulator, that depends on how close we are to pointing at our current goal
-		if (fabs(nError.az) > 50*D2R){
-
-			cmd.angular.z=(nError.az)*0.3;
-
-			// linear speed is zero while the angle is too big
-			cmd.linear.x= 0.0;
-			cmd.linear.y= 0.0;
-
-		}else{
-
-			cmd.angular.z=(nError.az)*0.5;
-
-			// keeping a small linear speed so that the movement is smooth
-			cmd.linear.x= 0.05;
-			cmd.linear.y= 0.05;
-		}
-
-	}
 
 	void MRPFPlannerROS::setVelZ()
 	{
 
-		cmd.linear.x= 0;
-		cmd.linear.y= 0;
-		cmd.angular.z=0;
+		cmd_.linear.x= 0;
+		cmd_.linear.y= 0;
+		cmd_.angular.z=0;
 
 	}
-
-	void MRPFPlannerROS::setNext()
-	{
-
-		next.x = plan[count].pose.position.x;
-		next.y = plan[count].pose.position.y;
-
-	}
-
-	void MRPFPlannerROS::setNowError()
-	{
-
-		double d;
-
-		nError.x = (next.x - now.x);
-		nError.y = (next.y - now.y);
-
-		// if these two variables are null, the tangent doesn't exist 
-		// plus, the angle error is irrelevant because we have arrived at our destination
-
-		if (nError.y == 0 & nError.x == 0){  
-			d = now.az;
-		}else{	
-			d = std::atan2(nError.y, nError.x);
-		}
-
-		distance = std::sqrt(nError.x*nError.x +nError.y*nError.y);
-		nError.az = d - now.az;
-
-		// make sure that we chose the smallest angle, so that the robot takes the shortest turn
-		if ( nError.az > 180*D2R ) { nError.az -= 360*D2R; }
-		if ( nError.az < -180*D2R ) { nError.az += 360*D2R;  }
-
-	}
-
-	void MRPFPlannerROS::pathVisualization()
-	{
-	 
-	        geometry_msgs::Point p;
- 
-	        p.x = now.x;
-	        p.y = now.y;
-	        p.z = 0.5;
- 
-      	        points.points.push_back(p);
-   
-	     
-		path_pub.publish(points); 
-	 
-	 }
-
-
 
 }
 
 
-
-
-/*	void MRPFPlannerROS::bubbleVisualization()
-	{
-		/////// Visualization in rviz
-	 
-		visualization_msgs::Marker points, line_strip;
-	 
-		points.header.frame_id = "/draw_bubble";
-		line_strip.header.frame_id = "/draw_bubble";
-	 
-		points.header.stamp = ros::Time::now();
-		line_strip.header.stamp = ros::Time::now();
-	 
-		points.ns = "bubble_drawing";
-		line_strip.ns = "bubble_drawing";
-	 
-		points.action = visualization_msgs::Marker::ADD;
-		line_strip.action = visualization_msgs::Marker::ADD;
-	 
-		points.id = 0;
-		line_strip.id = 1;
-	 
-		points.pose = poseNow;
-		line_strip.pose = poseNow;
-	 
-		points.type = visualization_msgs::Marker::POINTS;
-		line_strip.type = visualization_msgs::Marker::LINE_STRIP;
-	 
-		//size of dots and lines
-		points.scale.x = 0.2;
-		points.scale.y = 0.2;
-		line_strip.scale.x = 0.1;
-	 
-		points.color.b = 1.0f;
-		points.color.a = 1.0;
-	 
-		line_strip.color.b = 1.0f;
-		line_strip.color.a = 1.0;
-	 
-		for(int j = 0; j<180; j++){
-	 
-		    geometry_msgs::Point p;
-	 
-		    p.x = std::cos(j*D2R)*bubble[j];
-		    p.y = std::sin(j*D2R)*bubble[j];
-		    p.z = 0;
-	 
-		    points.points[j] = p;
-		    line_strip.points[j] = p;
-	 
-		} 
-	     
-		bubble_pub.publish(points); 
-		bubble_pub.publish(line_strip);
-	 
-	 }
-*/

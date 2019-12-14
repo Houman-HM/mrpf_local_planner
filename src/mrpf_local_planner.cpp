@@ -1,7 +1,9 @@
 
 #include "mrpf_local_planner/mrpf_local_planner.h"
-#include <yaml-cpp/yaml.h>
 #include <math.h>
+#include <iostream>
+#include <chrono>
+#include <ctime>  
 // pluginlib macros (defines, ...)
 #include <pluginlib/class_list_macros.h>
 
@@ -58,7 +60,7 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
 		tf_ = tf;
 
 		robot1_ = Robot("robot1", -0.6, 0.0, 0.0, "path1", "clearbot1/cmd_vel");
-    robot2_ = Robot("robot2", -0.6, 0.0, 0.0, "path2", "clearbot2/cmd_vel");
+    robot2_ = Robot("robot2", 0.6, 0.0, 0.0, "path2", "clearbot2/cmd_vel");
 
 		initialized_ = true;
 
@@ -89,15 +91,16 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
     plan_ = orig_global_plan;
     quaternionToRPY(plan_);
 
-    
-    dt_ = 30.0/main_trajectory_x_.size();
-    std::cout <<dt_<<std::endl;
+    main_trajectory_x_[0] = 0.0;
+    yaw[0] = 0;
+    main_trajectory_y_[0] = 0.0;
+    dt_ = 20.0/main_trajectory_x_.size();
     for (int i = 0; i < plan_.size(); i++)
     {
       robot1_.transformed_x_.push_back(main_trajectory_x_[i] + robot1_.vertex_x_ * cos(yaw[i]));
-      robot1_.transformed_y_.push_back(main_trajectory_y_[i] + robot1_.vertex_y_ * sin(yaw[i]));
+      robot1_.transformed_y_.push_back(main_trajectory_y_[i] + robot1_.vertex_x_ * sin(yaw[i]));
       robot2_.transformed_x_.push_back(main_trajectory_x_[i] + robot2_.vertex_x_ * cos(yaw[i]));
-      robot2_.transformed_y_.push_back(main_trajectory_y_[i] + robot2_.vertex_y_ * sin(yaw[i]));
+      robot2_.transformed_y_.push_back(main_trajectory_y_[i] + robot2_.vertex_x_ * sin(yaw[i]));
     }
 
 
@@ -136,6 +139,8 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
 
 		if (!velocity_executed_)
 		{
+      publishPath();
+
 			for(int i = 0; i < robot1_.vx_.size(); i++)
 			{
 				geometry_msgs::Twist r1;
@@ -149,12 +154,46 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
         ros::Duration(dt_).sleep();
 			}
 			velocity_executed_ = true;
+      setVelZ();
 		}
+    else
+    {
+      goal_reached_ = true;
+    }
+    
 
 		return true;
 
 	}
 
+  void MRPFPlannerROS::publishPath()
+  {  
+    for(int i = 0; i < main_trajectory_x_.size(); i++)
+    {
+      robot1_.trajectory_pose_.pose.position.x = robot1_.transformed_x_[i];
+      robot1_.trajectory_pose_.pose.position.y = robot1_.transformed_y_[i];
+      robot1_.trajectory_pose_.pose.orientation.x = 0;
+      robot1_.trajectory_pose_.pose.orientation.y = 0;
+      robot1_.trajectory_pose_.pose.orientation.z = 0;
+      robot1_.trajectory_pose_.pose.orientation.w = 1;
+      robot1_.trajectory_pose_.header.frame_id = "map";
+      robot1_.trajectory_.header.frame_id = "map";
+      robot1_.trajectory_.poses.push_back(robot1_.trajectory_pose_);
+
+      robot2_.trajectory_pose_.pose.position.x = robot2_.transformed_x_[i];
+      robot2_.trajectory_pose_.pose.position.y = robot2_.transformed_y_[i];
+      robot2_.trajectory_pose_.pose.orientation.x = 0;
+      robot2_.trajectory_pose_.pose.orientation.y = 0;
+      robot2_.trajectory_pose_.pose.orientation.z = 0;
+      robot2_.trajectory_pose_.pose.orientation.w = 1;
+      robot2_.trajectory_pose_.header.frame_id = "map";
+      robot2_.trajectory_.header.frame_id = "map";
+      robot2_.trajectory_.poses.push_back(robot2_.trajectory_pose_);    
+    }
+    robot1_.path_publisher_.publish(robot1_.trajectory_);
+    robot2_.path_publisher_.publish(robot2_.trajectory_);
+    ros::Duration(2).sleep();
+  }
 	bool MRPFPlannerROS::isGoalReached()
 	{
 		// check if plugin initialized
@@ -177,7 +216,8 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
 		cmd_.linear.x= 0;
 		cmd_.linear.y= 0;
 		cmd_.angular.z=0;
-
+    robot1_.cmd_vel_publisher_.publish(cmd_);
+    robot2_.cmd_vel_publisher_.publish(cmd_);
 	}
 
 }

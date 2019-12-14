@@ -107,6 +107,11 @@ namespace mrpf_local_planner{
   // Flags
   bool goal_reached_;
   bool initialized_;
+  int counter = 0;
+  int max_vel = 0.5;
+  std::time_t start_;  
+  std::time_t end_;  
+
 
   // Velocity methods
   /**
@@ -115,6 +120,7 @@ namespace mrpf_local_planner{
   void setVel();
 
   void setVelZ();
+  void publishPath();
 
   double getYaw(geometry_msgs::PoseWithCovarianceStamped msg);
 

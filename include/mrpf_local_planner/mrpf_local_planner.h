@@ -20,21 +20,12 @@
 #include <boost/shared_ptr.hpp>
 #include <array>
 #include <vector>
-#include <yaml-cpp/yaml.h>
-
 namespace mrpf_local_planner{
 
   /**
    * @class MRPFPlannerROS
    * @brief Plugin to the ros base_local_planner.
    */
-
-  //  struct pos {
-
-	// double x, y, az;	
-
-  //  };
-
 
   class MRPFPlannerROS : public nav_core::BaseLocalPlanner{
 
@@ -67,6 +58,8 @@ namespace mrpf_local_planner{
       void initialize(std::string name, tf::TransformListener* tf,
           costmap_2d::Costmap2DROS* costmap_ros);
       void quaternionToRPY (std::vector<geometry_msgs::PoseStamped> path);
+      void yamlReader(std::string pathToFile);
+
       /**
        * @brief Set the plan that the controller is following; also reset MRPF-planner
        * @param orig_global_plan The plan to pass to the controller
@@ -113,7 +106,6 @@ namespace mrpf_local_planner{
   std::vector<Robot> robots_;
   void setVelZ();
   void publishPath();
-  void yamlReader(std::string pathToFile);
   
   double getYaw(geometry_msgs::PoseWithCovarianceStamped msg);
 

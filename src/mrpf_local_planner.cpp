@@ -6,6 +6,7 @@
 #include <ctime>  
 // pluginlib macros (defines, ...)
 #include <pluginlib/class_list_macros.h>
+#include "yaml-cpp/yaml.h"
 
 PLUGINLIB_DECLARE_CLASS(mrpf_local_planner, MRPFPlannerROS, mrpf_local_planner::MRPFPlannerROS, nav_core::BaseLocalPlanner)
 
@@ -87,11 +88,12 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
   {
     plan_ = orig_global_plan;
     quaternionToRPY(plan_);
-
     main_trajectory_x_[0] = 0.0;
     yaw[0] = 0;
     main_trajectory_y_[0] = 0.0;
     dt_ = 20.0/main_trajectory_x_.size();
+    yamlReader("/home/houman/catkin_ws/src/new_nodes/params/robots.yaml");
+    
     for (int i = 0; i < plan_.size(); i++)
     {
       for (int j = 0; j < robots_.size(); j++)
@@ -100,8 +102,6 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
       robots_[j].transformed_y_.push_back(main_trajectory_y_[i] + robots_[j].vertex_x_ * sin(yaw[i]));
       }
     }
-
-
     for (int i = 0; i < main_trajectory_x_.size()-1; i++)
     {
       for (int j = 0; j < robots_.size(); j++)
@@ -133,10 +133,15 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
 		if (!velocity_executed_)
 		{
       publishPath();
-
+      geometry_msgs::Twist twist;
 			for(int i = 0; i < robots_[0].vx_.size(); i++)
 			{
-
+        for (int j = 0; j < robots_.size(); j++)
+        {
+          twist.linear.x = robots_[j].vx_[i];
+          twist.linear.y = robots_[j].vy_[i];
+          robots_[j].cmd_vel_publisher_.publish(twist);
+        }
         ros::Duration(dt_).sleep();
 			}
 
@@ -169,9 +174,11 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
         robots_[i].trajectory_.header.frame_id = "map";
         robots_[i].trajectory_.poses.push_back(robots_[i].trajectory_pose_);
       }
-      robots_[i].path_publisher_.publish(robots_[i].trajectory_);
+        robots_[i].path_publisher_.publish(robots_[i].trajectory_);
+        ros::Duration(1).sleep();
+        robots_[i].path_publisher_.publish(robots_[i].trajectory_);
+
     }
-    ros::Duration(1.0).sleep();
   }
 	bool MRPFPlannerROS::isGoalReached()
 	{

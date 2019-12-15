@@ -21,7 +21,9 @@ find_package(catkin REQUIRED COMPONENTS
   tf_conversions
 )
 
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+find_package(PkgConfig)
+pkg_check_modules(YAMLCPP REQUIRED yaml-cpp>=0.5)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES mrpf_local_planner
@@ -42,5 +44,5 @@ add_library(mrpf_local_planner
  )
 
 target_link_libraries(mrpf_local_planner
-   ${catkin_LIBRARIES}
+   ${catkin_LIBRARIES} ${YAMLCPP_LIBRARIES}
  )

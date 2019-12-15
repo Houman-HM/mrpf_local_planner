@@ -20,6 +20,7 @@
 #include <boost/shared_ptr.hpp>
 #include <array>
 #include <vector>
+#include <yaml-cpp/yaml.h>
 
 namespace mrpf_local_planner{
 
@@ -98,30 +99,22 @@ namespace mrpf_local_planner{
   std::vector<double> main_trajectory_x_;
   std::vector<double> main_trajectory_y_;
   double dt_;
-  Robot robot1_;
-  Robot robot2_;
   std::vector<geometry_msgs::PoseStamped> plan_;
   geometry_msgs::Twist cmd_;
   ros::Publisher cmd_vel_publisher;
 
-  // Flags
   bool goal_reached_;
   bool initialized_;
   int counter = 0;
   int max_vel = 0.5;
+  bool rotation_;
   std::time_t start_;  
   std::time_t end_;  
-
-
-  // Velocity methods
-  /**
-  * @brief Set Vel: function that sets linear speed 
-  */
-  void setVel();
-
+  std::vector<Robot> robots_;
   void setVelZ();
   void publishPath();
-
+  void yamlReader(std::string pathToFile);
+  
   double getYaw(geometry_msgs::PoseWithCovarianceStamped msg);
 
   };

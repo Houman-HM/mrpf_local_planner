@@ -59,9 +59,6 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
 		costmap_ros_ = costmap_ros;
 		tf_ = tf;
 
-		robot1_ = Robot("robot1", -0.6, 0.0, 0.0, "path1", "clearbot1/cmd_vel");
-    robot2_ = Robot("robot2", 0.6, 0.0, 0.0, "path2", "clearbot2/cmd_vel");
-
 		initialized_ = true;
 
 		// this is only here to make this process visible in the rxlogger right from the start
@@ -97,26 +94,22 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
     dt_ = 20.0/main_trajectory_x_.size();
     for (int i = 0; i < plan_.size(); i++)
     {
-      robot1_.transformed_x_.push_back(main_trajectory_x_[i] + robot1_.vertex_x_ * cos(yaw[i]));
-      robot1_.transformed_y_.push_back(main_trajectory_y_[i] + robot1_.vertex_x_ * sin(yaw[i]));
-      robot2_.transformed_x_.push_back(main_trajectory_x_[i] + robot2_.vertex_x_ * cos(yaw[i]));
-      robot2_.transformed_y_.push_back(main_trajectory_y_[i] + robot2_.vertex_x_ * sin(yaw[i]));
+      for (int j = 0; j < robots_.size(); j++)
+      {
+      robots_[j].transformed_x_.push_back(main_trajectory_x_[i] + robots_[j].vertex_x_ * cos(yaw[i]));
+      robots_[j].transformed_y_.push_back(main_trajectory_y_[i] + robots_[j].vertex_x_ * sin(yaw[i]));
+      }
     }
 
 
     for (int i = 0; i < main_trajectory_x_.size()-1; i++)
     {
-      robot1_.vx_.push_back((robot1_.transformed_x_[i+1]-robot1_.transformed_x_[i])/dt_);
-      robot1_.vy_.push_back((robot1_.transformed_y_[i+1]-robot1_.transformed_y_[i])/dt_);
-      robot2_.vx_.push_back((robot2_.transformed_x_[i+1]-robot2_.transformed_x_[i])/dt_);
-      robot2_.vy_.push_back((robot2_.transformed_y_[i+1]-robot2_.transformed_y_[i])/dt_);
-
+      for (int j = 0; j < robots_.size(); j++)
+      {
+      robots_[j].vx_.push_back((robots_[j].transformed_x_[i+1]-robots_[j].transformed_x_[i])/dt_);
+      robots_[j].vy_.push_back((robots_[j].transformed_y_[i+1]-robots_[j].transformed_y_[i])/dt_);
+      }
     }
-    //     for(int i = 0; i < robot1_.vx_.size(); i++)
-    // {
-    //   std::cout<< robot1_.vx_[i] << std::endl;
-    //   std::cout<< robot1_.vy_[i] << std::endl;
-    // }
       
     plan_received_ = true;
   }
@@ -141,18 +134,12 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
 		{
       publishPath();
 
-			for(int i = 0; i < robot1_.vx_.size(); i++)
+			for(int i = 0; i < robots_[0].vx_.size(); i++)
 			{
-				geometry_msgs::Twist r1;
-        geometry_msgs::Twist r2;
-        r1.linear.x = robot1_.vx_[i];
-        r1.linear.y = robot1_.vy_[i];
-        r2.linear.x = robot2_.vx_[i];
-        r2.linear.y = robot2_.vy_[i];
-        robot1_.cmd_vel_publisher_.publish(r1);
-        robot2_.cmd_vel_publisher_.publish(r2);
+
         ros::Duration(dt_).sleep();
 			}
+
 			velocity_executed_ = true;
       setVelZ();
 		}
@@ -167,32 +154,24 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
 	}
 
   void MRPFPlannerROS::publishPath()
-  {  
-    for(int i = 0; i < main_trajectory_x_.size(); i++)
+  { 
+    for (int i = 0; i < robots_.size(); i++)
     {
-      robot1_.trajectory_pose_.pose.position.x = robot1_.transformed_x_[i];
-      robot1_.trajectory_pose_.pose.position.y = robot1_.transformed_y_[i];
-      robot1_.trajectory_pose_.pose.orientation.x = 0;
-      robot1_.trajectory_pose_.pose.orientation.y = 0;
-      robot1_.trajectory_pose_.pose.orientation.z = 0;
-      robot1_.trajectory_pose_.pose.orientation.w = 1;
-      robot1_.trajectory_pose_.header.frame_id = "map";
-      robot1_.trajectory_.header.frame_id = "map";
-      robot1_.trajectory_.poses.push_back(robot1_.trajectory_pose_);
-
-      robot2_.trajectory_pose_.pose.position.x = robot2_.transformed_x_[i];
-      robot2_.trajectory_pose_.pose.position.y = robot2_.transformed_y_[i];
-      robot2_.trajectory_pose_.pose.orientation.x = 0;
-      robot2_.trajectory_pose_.pose.orientation.y = 0;
-      robot2_.trajectory_pose_.pose.orientation.z = 0;
-      robot2_.trajectory_pose_.pose.orientation.w = 1;
-      robot2_.trajectory_pose_.header.frame_id = "map";
-      robot2_.trajectory_.header.frame_id = "map";
-      robot2_.trajectory_.poses.push_back(robot2_.trajectory_pose_);    
+      for(int j = 0; j < main_trajectory_x_.size(); j++)
+      {
+        robots_[i].trajectory_pose_.pose.position.x = robots_[i].transformed_x_[j];
+        robots_[i].trajectory_pose_.pose.position.y = robots_[i].transformed_y_[j];
+        robots_[i].trajectory_pose_.pose.orientation.x = 0;
+        robots_[i].trajectory_pose_.pose.orientation.y = 0;
+        robots_[i].trajectory_pose_.pose.orientation.z = 0;
+        robots_[i].trajectory_pose_.pose.orientation.w = 1;
+        robots_[i].trajectory_pose_.header.frame_id = "map";
+        robots_[i].trajectory_.header.frame_id = "map";
+        robots_[i].trajectory_.poses.push_back(robots_[i].trajectory_pose_);
+      }
+      robots_[i].path_publisher_.publish(robots_[i].trajectory_);
     }
-    robot1_.path_publisher_.publish(robot1_.trajectory_);
-    robot2_.path_publisher_.publish(robot2_.trajectory_);
-    ros::Duration(2).sleep();
+    ros::Duration(1.0).sleep();
   }
 	bool MRPFPlannerROS::isGoalReached()
 	{
@@ -207,7 +186,27 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
 		return goal_reached_;
 
 	}
+  void MRPFPlannerROS::yamlReader(std::string pathToFile)
+  {
+  try
+  {
+    YAML::Node config = YAML::LoadFile(pathToFile);
+    for (int i = 0; i < config["Robots"].size(); i++)
+    {
+      robots_.push_back(Robot(config["Robots"][i]["name"].as<std::string>(), config["Robots"][i]["vertex"][0].as<double>(),
+                        config["Robots"][i]["vertex"][1].as<double>(), config["Robots"][i]["initial_angle"].as<double>(), 
+                        config["Robots"][i]["path_topic"].as<std::string>(), 
+                        config["Robots"][i]["cmd_vel_topic"].as<std::string>()));
+    }
+    rotation_ = config["Global"]["rotation"].as<bool>();
+      
+  }
 
+  catch(...)
+  { 
+    ROS_INFO("Could not read the Yaml file.");
+  }
+}
 
 
 	void MRPFPlannerROS::setVelZ()
@@ -216,8 +215,10 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
 		cmd_.linear.x= 0;
 		cmd_.linear.y= 0;
 		cmd_.angular.z=0;
-    robot1_.cmd_vel_publisher_.publish(cmd_);
-    robot2_.cmd_vel_publisher_.publish(cmd_);
+    for (int j = 0; j < robots_.size(); j++)
+    {
+      robots_[j].cmd_vel_publisher_.publish(cmd_);
+    }
 	}
 
 }

@@ -20,6 +20,7 @@ public:
   std::vector<double> dx_;
   std::vector<double> dy_;
   std::vector<double> dtheta_;
+  std::vector <double> distance_;
   std::vector<double> dx_prime_;
   std::vector<double> dy_prime_;
   std::vector<double> vx_;
@@ -27,6 +28,7 @@ public:
   std::vector<double> vangular_;
   geometry_msgs::PoseStamped trajectory_pose_;
   std_msgs::Header header_;
+  geometry_msgs::Twist twist;
   nav_msgs::Path trajectory_;
   ros::Publisher path_publisher_;
   ros::Publisher cmd_vel_publisher_;
@@ -40,6 +42,8 @@ public:
     initial_angle_= initial_angle;
     path_publisher_ = n.advertise<nav_msgs::Path>(path_topic, 1000);
     cmd_vel_publisher_ = n.advertise<geometry_msgs::Twist>(cmd_vel_topic, 1000);
+    twist.linear.x = 0;
+    twist.linear.y = 0;
   }
 
   Robot(){};

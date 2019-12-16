@@ -20,6 +20,11 @@
 #include <boost/shared_ptr.hpp>
 #include <array>
 #include <vector>
+#include <iostream>
+#include <ctime>
+#include <ratio>
+#include <chrono>
+
 namespace mrpf_local_planner{
 
   /**
@@ -86,27 +91,34 @@ namespace mrpf_local_planner{
   costmap_2d::Costmap2DROS* costmap_ros_; ///<@brief pointer to costmap  
   tf::TransformListener* tf_; ///<@brief pointer to Transform Listener 
   // Data
-  bool plan_received_ = false;
-  bool velocity_executed_ = false;
-  std::vector<double> yaw;
-  std::vector<double> main_trajectory_x_;
-  std::vector<double> main_trajectory_y_;
+  bool planReceived_ = false;
+  bool velocityExecuted_ = false;
+  std::vector<double> yaw_;
+  std::vector<double> mainTrajectoryX_;
+  std::vector<double> mainTrajectoryY_;
   double dt_;
   std::vector<geometry_msgs::PoseStamped> plan_;
   geometry_msgs::Twist cmd_;
   ros::Publisher cmd_vel_publisher;
 
   bool goal_reached_;
+  bool timeUpdated_;
   bool initialized_;
-  int counter = 0;
+  int counter_ = 0;
   int max_vel = 0.5;
-  bool rotation_;
-  std::time_t start_;  
-  std::time_t end_;  
+  bool rotation_; 
+  std::chrono::high_resolution_clock::time_point currentTime_;
+  std::chrono::high_resolution_clock::time_point previousTime_;
+  double timeDifference;                                                                                                                                                                                                                                                                                                                                                              
   std::vector<Robot> robots_;
+  double maxVelocity_;
   void setVelZ();
   void publishPath();
-  
+  void calculateVelocities();
+  void calculateDxAndDy();
+  void calculateDistance();
+  void transformPoints();
+  void velocitiesInRobotFrame();
   double getYaw(geometry_msgs::PoseWithCovarianceStamped msg);
 
   };

@@ -24,6 +24,7 @@
 #include <ctime>
 #include <ratio>
 #include <chrono>
+#include <thread>
 
 namespace mrpf_local_planner{
 
@@ -91,27 +92,35 @@ namespace mrpf_local_planner{
   costmap_2d::Costmap2DROS* costmap_ros_; ///<@brief pointer to costmap  
   tf::TransformListener* tf_; ///<@brief pointer to Transform Listener 
   // Data
-  bool planReceived_ = false;
+  bool plan_received_ = false;
   bool velocityExecuted_ = false;
+  ros::NodeHandle n;
   std::vector<double> yaw_;
-  std::vector<double> mainTrajectoryX_;
-  std::vector<double> mainTrajectoryY_;
-  double dt_;
+  std::vector<double> main_trajectory_x_;
+  std::vector<double> main_trajectory_y_;
   std::vector<geometry_msgs::PoseStamped> plan_;
   geometry_msgs::Twist cmd_;
-  ros::Publisher cmd_vel_publisher;
+  ros::Publisher cmd_vel_publisher = n.advertise<geometry_msgs::Twist> ("cmd_vel", 1000);
 
   bool goal_reached_;
-  bool timeUpdated_;
+  bool time_updated_;
   bool initialized_;
   int counter_ = 0;
   int max_vel = 0.5;
   bool rotation_; 
-  std::chrono::high_resolution_clock::time_point currentTime_;
-  std::chrono::high_resolution_clock::time_point previousTime_;
-  double timeDifference;                                                                                                                                                                                                                                                                                                                                                              
+  double executed_ = false;
+  double time_difference_;
+  geometry_msgs::Twist twist;                                                                                                                                                                                                                                                                                                                                                            
   std::vector<Robot> robots_;
-  double maxVelocity_;
+  std::vector<double> main_dx_;
+  std::vector<double> main_dy_;
+  std::vector<double> dyaw_;
+  std::vector<double> dt_;
+  double angular_speed_;
+  std::vector<double> main_distance;
+  std::vector<geometry_msgs::Twist> main_velocities_;
+  double max_velocity_;
+  std::thread cmd_vel_thread;
   void setVelZ();
   void publishPath();
   void calculateVelocities();
@@ -120,7 +129,8 @@ namespace mrpf_local_planner{
   void transformPoints();
   void velocitiesInRobotFrame();
   double getYaw(geometry_msgs::PoseWithCovarianceStamped msg);
-
+  void cmdVelPublisherThread(bool start_thread);
+  void erasePreviousTrajectory();
   };
 };
 

@@ -61,24 +61,25 @@ MRPFPlannerROS::~MRPFPlannerROS() {}
   ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
   return false;
   }
+  
   //reset next counter
-  if (!planReceived_)
-  {
+    ROS_INFO("New goal has been received!");
     goal_reached_ = false;
     plan_ = orig_global_plan;
-    quaternionToRPY(plan_);
-    mainTrajectoryX_[0] = 0.0;
-    yaw_[0] = 0;
-    mainTrajectoryY_[0] = 0.0;
-    dt_ = 30.0/mainTrajectoryX_.size();
+    main_trajectory_x_.clear();
+    main_trajectory_y_.clear();
+    max_velocity_ = 0.1;
     yamlReader("/home/houman/catkin_ws/src/new_nodes/params/robots.yaml");
+    erasePreviousTrajectory();
+    quaternionToRPY(plan_);
+    // yaw_[0] = 0.0;
     transformPoints();
     calculateDxAndDy();
+    calculateDistance();
+    velocitiesInRobotFrame();
     calculateVelocities();
     publishPath();
-
-    planReceived_ = true;
-	}
+    cmdVelPublisherThread(true);
   return true;
   }
 	bool MRPFPlannerROS::computeVelocityCommands(geometry_msgs::Twist& cmd_vel)
@@ -90,68 +91,49 @@ MRPFPlannerROS::~MRPFPlannerROS() {}
 		return false;
 		}
 
-    currentTime_ = std::chrono::high_resolution_clock::now();
-    if (!timeUpdated_)
-    {
-      previousTime_ = std::chrono::high_resolution_clock::now();
-      timeUpdated_ = true;
-    }
-    timeDifference = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime_ - previousTime_).count()/1000.0;
-    // std::cout << "Current time is: " << currentTime_ <<std::endl;
-    // std::cout << "Previous time is: " << previousTime_ << std::endl;
-    std::cout << "The time difference is " << timeDifference << "and dt is "<< dt <<std::endl;
-		if (timeDifference < dt_)
-    {
-      for (int j = 0; j < robots_.size(); j++)
-      {
-        robots_[j].cmd_vel_publisher_.publish(robots_[j].twist);
-      }      
-    }
-    else
-    {
-      std::cout <<"Sending a new velocity" << std::endl;
-      if (counter_ < robots_[0].vx_.size())
-      {
-        for (int j = 0; j < robots_.size(); j++)
-        {
-        robots_[j].twist.linear.x = robots_[j].vx_[counter_];
-        robots_[j].twist.linear.y = robots_[j].vy_[counter_];
-        robots_[j].cmd_vel_publisher_.publish(robots_[j].twist);
-      }
-      counter_++;
-      previousTime_ = std::chrono::high_resolution_clock::now();
+    // current_time_ = std::chrono::high_resolution_clock::now();
+    // if (!time_updated_)
+    // {
+    //   previous_time_ = std::chrono::high_resolution_clock::now();
+    //   time_updated_ = true;
+    // }
+    // time_difference_ = std::chrono::duration_cast<std::chrono::milliseconds>(current_time_ - previous_time_).count()/1000.0;
+    // // std::cout << "Current time is: " << current_time_ <<std::endl;
+    // // std::cout << "Previous time is: " << previous_time_ << std::endl;
+    // std::cout << "The time difference is " << time_difference_ << "and dt is "<< dt_ <<std::endl;
+		// if (time_difference_ < dt_)
+    // {
+    //   for (int j = 0; j < robots_.size(); j++)
+    //   {
+    //     robots_[j].cmd_vel_publisher_.publish(robots_[j].twist);
+    //   }      
+    // }
+    // else
+    // {
+    //   std::cout <<"Sending a new velocity" << std::endl;
+    //   if (counter_ < yaw_.size() -1)
+    //   {
+    //     for (int j = 0; j < robots_.size(); j++)
+    //     {
+    //     dt_ = robots_[0].distance_[j]/max_velocity_;
+    //     robots_[j].twist.linear.x = max_velocity_ * cos(yaw_[counter_]);
+    //     robots_[j].twist.linear.y = max_velocity_ * sin(yaw_[counter_]);
+    //     robots_[j].cmd_vel_publisher_.publish(robots_[j].twist);
+    //   }
+    //   counter_++;
+    //   previous_time_ = std::chrono::high_resolution_clock::now();
 
-    }
-    else
-    {
-      setVelZ();
-      goal_reached_ = true;
-    }
-    }
+    // }
+    // else
+    // {
+    //   setVelZ();
+    //   goal_reached_ = true;
+    // }
+    // }
 		return true;
 	}
 
-  void MRPFPlannerROS::publishPath()
-  { 
-    for (int i = 0; i < robots_.size(); i++)
-    {
-      for(int j = 0; j < mainTrajectoryX_.size(); j++)
-      {
-        robots_[i].trajectory_pose_.pose.position.x = robots_[i].transformed_x_[j];
-        robots_[i].trajectory_pose_.pose.position.y = robots_[i].transformed_y_[j];
-        robots_[i].trajectory_pose_.pose.orientation.x = 0;
-        robots_[i].trajectory_pose_.pose.orientation.y = 0;
-        robots_[i].trajectory_pose_.pose.orientation.z = 0;
-        robots_[i].trajectory_pose_.pose.orientation.w = 1;
-        robots_[i].trajectory_pose_.header.frame_id = "map";
-        robots_[i].trajectory_.header.frame_id = "map";
-        robots_[i].trajectory_.poses.push_back(robots_[i].trajectory_pose_);
-      }
-        robots_[i].path_publisher_.publish(robots_[i].trajectory_);
-        ros::Duration(1).sleep();
-        robots_[i].path_publisher_.publish(robots_[i].trajectory_);
-    }
-  }
+
 	bool MRPFPlannerROS::isGoalReached()
 	{
 		// check if plugin initialized
@@ -164,27 +146,6 @@ MRPFPlannerROS::~MRPFPlannerROS() {}
 		return goal_reached_;
 	}
 
-  void MRPFPlannerROS::yamlReader(std::string pathToFile)
-  {
-  try
-  {
-    YAML::Node config = YAML::LoadFile(pathToFile);
-    for (int i = 0; i < config["Robots"].size(); i++)
-    {
-      robots_.push_back(Robot(config["Robots"][i]["name"].as<std::string>(), config["Robots"][i]["vertex"][0].as<double>(),
-                        config["Robots"][i]["vertex"][1].as<double>(), config["Robots"][i]["initial_angle"].as<double>(), 
-                        config["Robots"][i]["path_topic"].as<std::string>(), 
-                        config["Robots"][i]["cmd_vel_topic"].as<std::string>()));
-    }
-    rotation_ = config["Global"]["rotation"].as<bool>();
-      
-  }
-
-  catch(...)
-  { 
-    ROS_INFO("Could not read the Yaml file.");
-  }
-}
 
 void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> path)
 {
@@ -202,9 +163,10 @@ void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> pa
 		double xx= path[i].pose.position.x;
 		double yy= path[i].pose.position.y;
 		yaw_.push_back(y);
-		mainTrajectoryX_.push_back(xx);
-		mainTrajectoryY_.push_back(yy);
+		main_trajectory_x_.push_back(xx);
+		main_trajectory_y_.push_back(yy);
   }
+  std::cout<< "Size of the trajectory is "<<main_trajectory_y_.size() << std::endl;
 }
 
 void MRPFPlannerROS::setVelZ()
@@ -222,41 +184,78 @@ void MRPFPlannerROS::setVelZ()
 
 void MRPFPlannerROS::transformPoints()
 {
-  for (int i = 0; i < plan_.size(); i++)
+  geometry_msgs::Point point;
+  for (int i = 0; i < main_trajectory_x_.size(); i++)
   {
     for (int j = 0; j < robots_.size(); j++)
     {
-    robots_[j].transformed_x_.push_back(mainTrajectoryX_[i] + robots_[j].vertex_x_ * cos(yaw_[i]));
-    robots_[j].transformed_y_.push_back(mainTrajectoryY_[i] + robots_[j].vertex_x_ * sin(yaw_[i]));
+      point.x = main_trajectory_x_[i] + robots_[j].vertex_x_ * cos(yaw_[i]);
+      point.y = main_trajectory_y_[i] + robots_[j].vertex_x_ * sin(yaw_[i]);
+      robots_[j].transformed_points_.push_back(point);
     }
   }
-}
 
-void MRPFPlannerROS::calculateVelocities()
-{
-  for (int i = 0; i < robots_[0].dx_.size(); i++)
-  {
-    for (int j = 0; j < robots_.size(); j++)
-    {
-    robots_[j].vx_.push_back(robots_[j].dx_[i]/dt_);
-    robots_[j].vy_.push_back(robots_[j].dy_[i]/dt_);
-    }
-  }
-  std::cout << "Finished calculating Vx and Vy which were " << robots_[0].vx_.size() << " elements" << std::endl;
+  // for (int i = 0; i < main_trajectory_x_.size(); i++)
+  // {
+  //   main_trajectory_x_[i] = main_trajectory_x_[i] * cos(yaw_[i]);
+  //   main_trajectory_y_[i] = main_trajectory_y_[i] * sin(yaw_[i]);
+  // }  
 }
 
 void MRPFPlannerROS::calculateDxAndDy()
 {
   for (int i = 0;  i < robots_.size(); i++)
   {
-    for (int j = 0; j < robots_[0].transformed_x_.size()-1; j++)
+    for (int j = 0; j < robots_[0].transformed_points_.size()-1; j++)
     {
-      robots_[i].dx_.push_back(robots_[i].transformed_x_[j+1] - robots_[i].transformed_x_[j]);
-      robots_[i].dy_.push_back(robots_[i].transformed_y_[j+1] - robots_[i].transformed_y_[j]);
+      robots_[i].dx_.push_back(robots_[i].transformed_points_[j+1].x - robots_[i].transformed_points_[j].x);
+      robots_[i].dy_.push_back(robots_[i].transformed_points_[j+1].y - robots_[i].transformed_points_[j].y);
     }
   }
+    for (int i = 0; i < main_trajectory_x_.size()-1; i++)
+    {
+      // main_dx_.push_back(main_trajectory_x_[i+1] - main_trajectory_x_[i]);
+      // main_dy_.push_back(main_trajectory_y_[i+1] - main_trajectory_y_[i]);
+      dyaw_.push_back(yaw_[i+1] - yaw_[i]);
+    }
   std::cout << "Finished calculating Dx and Dy which were " << robots_[0].dx_.size() << " points"<< std::endl;
 }
+
+void MRPFPlannerROS::calculateDistance()
+{
+  for (int i = 0; i < robots_.size(); i++)
+  {
+    for (int j = 0; j < robots_[0].dx_.size(); j++)
+    {
+      robots_[i].distance_.push_back(sqrt(pow(robots_[i].dx_[j],2) + pow(robots_[i].dy_[j],2)));
+    }  
+  }
+    for (int i = 0; i < robots_[0].dx_.size(); i++)
+    {
+      // main_distance.push_back(sqrt(pow(main_dx_[i],2) + pow(main_dy_[i],2)));
+      dt_.push_back(robots_[0].distance_[i]/max_velocity_);
+    }
+}
+void MRPFPlannerROS::calculateVelocities()
+{
+  geometry_msgs::Twist temp;
+  for (int i = 0; i < robots_[0].dx_.size(); i++)
+  {
+    for (int j = 0; j < robots_.size(); j++)
+    {
+    temp.linear.x = robots_[j].dx_prime_[i]/dt_[i];
+    temp.linear.y = robots_[j].dy_prime_[i]/dt_[i];
+    temp.angular.z = dyaw_[i]/dt_[i];
+    robots_[j].velocity_.push_back(temp);
+    }
+    // temp.linear.x = main_dx_[i]/dt_[i];
+    // temp.linear.y = main_dy_[i]/dt_[i];
+    // temp.angular.z = dyaw_[i]/dt_[i];
+    // main_velocities_.push_back(temp);
+  }
+  std::cout << "Finished calculating Vx and Vy which were " << robots_[0].velocity_.size() << " elements" << std::endl;
+}
+
 void MRPFPlannerROS::velocitiesInRobotFrame()
   {
     for (int i = 0; i <robots_.size(); i++)
@@ -271,6 +270,85 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
     }
   }
 
+  void MRPFPlannerROS::cmdVelPublisherThread(bool start_thread)
+  {
+    setVelZ();
+    for (int i = 0; i < robots_[0].velocity_.size(); i++)
+    {
+        for (int j = 0; j < robots_.size(); j++)
+        {
+        robots_[j].cmd_vel_publisher_.publish(robots_[j].velocity_[i]);
+        }
+        // cmd_vel_publisher.publish(robots_[2].velocity_[i]);
+        ros::Duration(dt_[i]).sleep();
+        std::cout << "This is the counter: " << dt_[i] <<std::endl;
+    }
+    setVelZ();
+    goal_reached_ = true;
+    ROS_INFO("Goal reached!");
+  }
+  void MRPFPlannerROS::erasePreviousTrajectory()
+  {
+    for (int i = 0; i < robots_.size(); i++)
+    {
+      robots_[i].transformed_points_.clear();
+      robots_[i].transformed_points_.clear();
+      robots_[i].velocity_.clear();
+      robots_[i].distance_.clear();
+      robots_[i].dx_.clear();
+      robots_[i].dy_.clear();
+      main_distance.clear();
+      main_dx_.clear();
+      main_dy_.clear();
+      robots_[i].trajectory_.poses.clear();
+    }
+  }
+
+  void MRPFPlannerROS::publishPath()
+  { 
+    for (int i = 0; i < robots_.size(); i++)
+    {
+      for(int j = 0; j < main_trajectory_x_.size(); j++)
+      {
+        robots_[i].trajectory_pose_.pose.position.x = robots_[i].transformed_points_[j].x;
+        robots_[i].trajectory_pose_.pose.position.y = robots_[i].transformed_points_[j].y;
+        robots_[i].trajectory_pose_.pose.orientation.x = 0;
+        robots_[i].trajectory_pose_.pose.orientation.y = 0;
+        robots_[i].trajectory_pose_.pose.orientation.z = 0;
+        robots_[i].trajectory_pose_.pose.orientation.w = 1;
+        robots_[i].trajectory_pose_.header.frame_id = "map";
+        robots_[i].trajectory_.header.frame_id = "map";
+        robots_[i].trajectory_.poses.push_back(robots_[i].trajectory_pose_);
+      }
+        robots_[i].path_publisher_.publish(robots_[i].trajectory_);
+        ros::Duration(1).sleep();
+        robots_[i].path_publisher_.publish(robots_[i].trajectory_);
+    }
+  }
+
+  void MRPFPlannerROS::yamlReader(std::string pathToFile)
+  {
+    if (!executed_)
+    {
+      try
+      {
+        YAML::Node config = YAML::LoadFile(pathToFile);
+        for (int i = 0; i < config["Robots"].size(); i++)
+        {
+          robots_.push_back(Robot(config["Robots"][i]["name"].as<std::string>(), config["Robots"][i]["vertex"][0].as<double>(),
+                            config["Robots"][i]["vertex"][1].as<double>(), config["Robots"][i]["initial_angle"].as<double>(), 
+                            config["Robots"][i]["path_topic"].as<std::string>(), 
+                            config["Robots"][i]["cmd_vel_topic"].as<std::string>()));
+        }
+        rotation_ = config["Global"]["rotation"].as<bool>();
+        executed_ = true;   
+        ROS_INFO("Successfully read the yaml file!"); 
+      }
+
+      catch(...)
+      { 
+        ROS_INFO("Could not read the Yaml file.");
+      }
+    }
+  }
 }
-
-

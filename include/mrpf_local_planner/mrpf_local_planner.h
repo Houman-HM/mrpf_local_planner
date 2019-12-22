@@ -25,6 +25,7 @@
 #include <ratio>
 #include <chrono>
 #include <thread>
+#include <tf/transform_listener.h>
 
 namespace mrpf_local_planner{
 
@@ -101,10 +102,11 @@ namespace mrpf_local_planner{
   std::vector<geometry_msgs::PoseStamped> plan_;
   geometry_msgs::Twist cmd_;
   ros::Publisher cmd_vel_publisher = n.advertise<geometry_msgs::Twist> ("cmd_vel", 1000);
-
+  ros::Subscriber get_plan_ = n.subscribe("/move_base/GlobalPlanner/plan",1000, &MRPFPlannerROS::callBack, this);
   bool goal_reached_;
   bool time_updated_;
   bool initialized_;
+  bool plan_generated_ = false;
   int counter_ = 0;
   int max_vel = 0.5;
   bool rotation_; 
@@ -117,10 +119,14 @@ namespace mrpf_local_planner{
   std::vector<double> dyaw_;
   std::vector<double> dt_;
   double angular_speed_;
+  tf::TransformListener transform_listener_;
+  tf::StampedTransform transform_;
+  geometry_msgs::Pose initial_pose;
   std::vector<double> main_distance;
   std::vector<geometry_msgs::Twist> main_velocities_;
   double max_velocity_;
   std::thread cmd_vel_thread;
+  void callBack(nav_msgs::Path path);
   void setVelZ();
   void publishPath();
   void calculateVelocities();

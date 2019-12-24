@@ -76,10 +76,11 @@ MRPFPlannerROS::~MRPFPlannerROS() {}
     ros::Duration(0.5).sleep();
     std::cout <<"size of main_yaw is : " << yaw_.size()<< std::endl; 
     yaw_[0] = initial_pose.orientation.z;
+    trajectorySmoothener();
     transformPoints();
     calculateDxAndDy();
     calculateDistance();
-    // velocitiesInRobotFrame();
+    velocitiesInRobotFrame();
     calculateVelocities();
     publishPath();
     cmdVelPublisherThread(true);
@@ -246,9 +247,9 @@ void MRPFPlannerROS::calculateVelocities()
   {
     for (int j = 0; j < robots_.size(); j++)
     {
-    temp.linear.x = robots_[j].dx_[i]/dt_[i];
-    temp.linear.y = robots_[j].dy_[i]/dt_[i];
-    // temp.angular.z = dyaw_[i]/dt_[i];
+    temp.linear.x = robots_[j].dx_prime_[i]/dt_[i];
+    temp.linear.y = robots_[j].dy_prime_[i]/dt_[i];
+    temp.angular.z = dyaw_[i]/dt_[i];
     robots_[j].velocity_.push_back(temp);
     }
     // temp.linear.x = main_dx_[i]/dt_[i];
@@ -282,9 +283,7 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
         {
         robots_[j].cmd_vel_publisher_.publish(robots_[j].velocity_[i]);
         }
-        // cmd_vel_publisher.publish(robots_[2].velocity_[i]);
         ros::Duration(dt_[i]).sleep();
-        std::cout << "This is dt: " << dt_[i] <<std::endl;
     }
     setVelZ();
     erasePreviousTrajectory();
@@ -302,14 +301,19 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
       robots_[i].distance_.clear();
       robots_[i].dx_.clear();
       robots_[i].dy_.clear();
+      robots_[i].dx_prime_.clear();
+      robots_[i].dy_prime_.clear();
       main_distance.clear();
       main_trajectory_x_.clear();
       main_trajectory_y_.clear();
       yaw_.clear();
+      dyaw_.clear();
       main_dx_.clear();
       main_dy_.clear();
       robots_[i].trajectory_.poses.clear();
     }
+    std::cout<<"Previous trajectory was cleared!" << std::endl;
+    std::cout << "Currently, the main trajectory size is " << main_trajectory_x_.size() <<std::endl;
   }
 
   void MRPFPlannerROS::publishPath()
@@ -358,6 +362,29 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
       }
   }
 
+  void MRPFPlannerROS::trajectorySmoothener()
+  {
+    int i = 1;
+    double difference;
+    int num_elements = 0;
+    while (i < yaw_.size())
+    { 
+      difference = yaw_[i] - yaw_[i-1];
+      num_elements = int(fabs(difference/0.06));
+      if (fabs(difference)>=0.07)
+      {
+      std::vector<double> temp = linspace(yaw_[i-1], yaw_[i],num_elements);
+      yaw_.insert(yaw_.begin()+i, temp.begin(), temp.end());
+      temp = linspace(main_trajectory_x_[i-1], main_trajectory_x_[i], num_elements);
+      main_trajectory_x_.insert(main_trajectory_x_.begin()+i, temp.begin(), temp.end());
+      temp = linspace(main_trajectory_y_[i-1], main_trajectory_y_[i], num_elements);
+      main_trajectory_y_.insert(main_trajectory_y_.begin()+i, temp.begin(), temp.end());
+      }
+      i++;
+    }
+    std::cout << "Trajectory was smoothened successfully!" << std::endl;
+  }
+
   void MRPFPlannerROS::yamlReader(std::string pathToFile)
   {
     if (!executed_)
@@ -374,7 +401,7 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
         }
         rotation_ = config["Global"]["rotation"].as<bool>();
         executed_ = true;   
-        ROS_INFO("Successfully read the yaml file!"); 
+        ROS_INFO("Successfully read the Yaml file!"); 
       }
 
       catch(...)
@@ -382,5 +409,24 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
         ROS_INFO("Could not read the Yaml file.");
       }
     }
+  }
+
+  std::vector<double>MRPFPlannerROS::linspace(double start, double end, int num)
+  {
+    std::vector<double> linspaced;
+    double delta = fabs(end - start) / num;
+    for(int i=1; i <=num; i++)
+      {
+        if (end - start < 0)
+        {
+        linspaced.push_back(start - delta * i);
+        }
+        else
+        {
+          linspaced.push_back(start + delta * i);
+        } 
+      }
+    // std::cout << "A vector of size " << linspaced.size() << " was generated!" << std::endl;              
+    return linspaced;
   }
 }

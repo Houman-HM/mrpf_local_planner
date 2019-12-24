@@ -134,6 +134,8 @@ namespace mrpf_local_planner{
   void calculateDistance();
   void transformPoints();
   void velocitiesInRobotFrame();
+  void trajectorySmoothener();
+  std::vector<double>linspace(double start, double end, int num);
   double getYaw(geometry_msgs::PoseWithCovarianceStamped msg);
   void cmdVelPublisherThread(bool start_thread);
   void erasePreviousTrajectory();

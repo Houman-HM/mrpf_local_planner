@@ -77,6 +77,7 @@ MRPFPlannerROS::~MRPFPlannerROS() {}
     std::cout <<"size of main_yaw is : " << yaw_.size()<< std::endl; 
     yaw_[0] = initial_pose.orientation.z;
     trajectorySmoothener();
+    distanceFromMainTrajectory();
     transformPoints();
     calculateDxAndDy();
     calculateDistance();
@@ -150,7 +151,7 @@ MRPFPlannerROS::~MRPFPlannerROS() {}
 		return goal_reached_;
 	}
 
-
+// Converting quaternion orinetation of trajectory points to RPY.
 void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> path)
 {
     
@@ -185,7 +186,7 @@ void MRPFPlannerROS::setVelZ()
   }
 }
 
-
+// Converting the main trajectory to the corresponding trajectory for each robot.
 void MRPFPlannerROS::transformPoints()
 {
   geometry_msgs::Point point;
@@ -193,8 +194,17 @@ void MRPFPlannerROS::transformPoints()
   {
     for (int j = 0; j < robots_.size(); j++)
     {
-      point.x = main_trajectory_x_[i] + robots_[j].vertex_x_ * cos(yaw_[i]);
-      point.y = main_trajectory_y_[i] + robots_[j].vertex_x_ * sin(yaw_[i]);
+      if (robots_[j].is_in_back)
+        {
+          point.x = main_trajectory_x_[i] - robots_[j].distnace_from_main_ * cos(yaw_[i] + robots_[j].initial_angle_);
+          point.y = main_trajectory_y_[i] - robots_[j].distnace_from_main_ * sin(yaw_[i] + robots_[j].initial_angle_);
+        }
+      else
+        {
+          point.x = main_trajectory_x_[i] + robots_[j].distnace_from_main_ * cos(yaw_[i]);
+          point.y = main_trajectory_y_[i] + robots_[j].distnace_from_main_ * sin(yaw_[i]);
+        }
+
       robots_[j].transformed_points_.push_back(point);
     }
   }
@@ -225,6 +235,7 @@ void MRPFPlannerROS::calculateDxAndDy()
   std::cout << "Finished calculating Dx and Dy which were " << robots_[0].dx_.size() << " points"<< std::endl;
 }
 
+// Calculating the distance between each two consecuitive waypoints in the generated trajectory.
 void MRPFPlannerROS::calculateDistance()
 {
   for (int i = 0; i < robots_.size(); i++)
@@ -242,24 +253,42 @@ void MRPFPlannerROS::calculateDistance()
 }
 void MRPFPlannerROS::calculateVelocities()
 {
-  geometry_msgs::Twist temp;
   for (int i = 0; i < robots_[0].dx_.size(); i++)
   {
     for (int j = 0; j < robots_.size(); j++)
     {
-    temp.linear.x = robots_[j].dx_prime_[i]/dt_[i];
-    temp.linear.y = robots_[j].dy_prime_[i]/dt_[i];
-    temp.angular.z = dyaw_[i]/dt_[i];
-    robots_[j].velocity_.push_back(temp);
+      if (rotation_)
+      {
+        geometry_msgs::Twist temp;
+        temp.linear.x = robots_[j].dx_prime_[i]/dt_[i];
+        temp.linear.y = robots_[j].dy_prime_[i]/dt_[i];
+        temp.angular.z = dyaw_[i]/dt_[i];
+        robots_[j].velocity_.push_back(temp);
+      }
+      
+      else
+      {
+        if (robots_[j].name_=="main")
+        {
+          geometry_msgs::Twist temp;
+          temp.linear.x = robots_[j].dx_prime_[i]/dt_[i];
+          temp.linear.y = robots_[j].dy_prime_[i]/dt_[i];
+          temp.angular.z = dyaw_[i]/dt_[i];
+          robots_[j].velocity_.push_back(temp);
+        }
+        else
+        {
+          geometry_msgs::Twist temp;
+          temp.linear.x = robots_[j].dx_[i]/dt_[i];
+          temp.linear.y = robots_[j].dy_[i]/dt_[i];
+          robots_[j].velocity_.push_back(temp);
+        }
+      }
     }
-    // temp.linear.x = main_dx_[i]/dt_[i];
-    // temp.linear.y = main_dy_[i]/dt_[i];
-    // temp.angular.z = dyaw_[i]/dt_[i];
-    // main_velocities_.push_back(temp);
   }
   std::cout << "Finished calculating Vx and Vy which were " << robots_[0].velocity_.size() << " elements" << std::endl;
 }
-
+// Map the velocities from the map frame to the robots' frame.
 void MRPFPlannerROS::velocitiesInRobotFrame()
   {
     for (int i = 0; i <robots_.size(); i++)
@@ -273,7 +302,7 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
       }
     }
   }
-
+  // A separate thread for publishing the velocities to each robot as well as the base_footprint.
   void MRPFPlannerROS::cmdVelPublisherThread(bool start_thread)
   {
     setVelZ();
@@ -291,6 +320,8 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
     goal_reached_ = true;
     ROS_INFO("Goal reached!");
   }
+
+  // Erasing the trajectory after it is executed.
   void MRPFPlannerROS::erasePreviousTrajectory()
   {
     for (int i = 0; i < robots_.size(); i++)
@@ -316,6 +347,7 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
     std::cout << "Currently, the main trajectory size is " << main_trajectory_x_.size() <<std::endl;
   }
 
+  //Publishing each robot's path on the corresponding path topic.
   void MRPFPlannerROS::publishPath()
   { 
     for (int i = 0; i < robots_.size(); i++)
@@ -337,6 +369,8 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
         robots_[i].path_publisher_.publish(robots_[i].trajectory_);
     }
   }
+
+  // Getting the plan from the Global planner topic.
   void MRPFPlannerROS::callBack(nav_msgs::Path path)
   {
       if (!plan_generated_)
@@ -361,7 +395,7 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
       plan_generated_ = true;
       }
   }
-
+  // Smoothening the trajectory by adding waypoints to it.
   void MRPFPlannerROS::trajectorySmoothener()
   {
     int i = 1;
@@ -400,6 +434,8 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
                             config["Robots"][i]["cmd_vel_topic"].as<std::string>()));
         }
         rotation_ = config["Global"]["rotation"].as<bool>();
+        center_coordinates_.x = config["Global"]["center_coordinates"][0].as<double>();
+        center_coordinates_.y = config["Global"]["center_coordinates"][1].as<double>();
         executed_ = true;   
         ROS_INFO("Successfully read the Yaml file!"); 
       }
@@ -428,5 +464,18 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
       }
     // std::cout << "A vector of size " << linspaced.size() << " was generated!" << std::endl;              
     return linspaced;
+  }
+
+    void MRPFPlannerROS::distanceFromMainTrajectory()
+  {
+    for (int j = 0; j < robots_.size(); j++)
+    {
+      robots_[j].distnace_from_main_ = (sqrt(pow(robots_[j].vertex_.x - center_coordinates_.x,2) +
+      pow(robots_[j].vertex_.y - center_coordinates_.y,2)));
+      if (robots_[j].vertex_.x - center_coordinates_.x <=0)
+      {
+        robots_[j].is_in_back = true;
+      }
+    }
   }
 }

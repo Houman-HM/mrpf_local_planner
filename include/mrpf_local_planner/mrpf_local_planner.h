@@ -111,8 +111,8 @@ namespace mrpf_local_planner{
   int max_vel = 0.5;
   bool rotation_; 
   double executed_ = false;
-  double time_difference_;
-  geometry_msgs::Twist twist;                                                                                                                                                                                                                                                                                                                                                            
+  geometry_msgs::Twist twist;
+  geometry_msgs::Point center_coordinates_;                                                                                                                                                                                                                                                                                                                                                            
   std::vector<Robot> robots_;
   std::vector<double> main_dx_;
   std::vector<double> main_dy_;
@@ -123,7 +123,6 @@ namespace mrpf_local_planner{
   tf::StampedTransform transform_;
   geometry_msgs::Pose initial_pose;
   std::vector<double> main_distance;
-  std::vector<geometry_msgs::Twist> main_velocities_;
   double max_velocity_;
   std::thread cmd_vel_thread;
   void callBack(nav_msgs::Path path);
@@ -139,6 +138,8 @@ namespace mrpf_local_planner{
   double getYaw(geometry_msgs::PoseWithCovarianceStamped msg);
   void cmdVelPublisherThread(bool start_thread);
   void erasePreviousTrajectory();
+  void distanceFromMainTrajectory();
+
   };
 };
 

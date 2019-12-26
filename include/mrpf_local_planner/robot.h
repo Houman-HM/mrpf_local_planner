@@ -13,9 +13,10 @@ class Robot
 {  
 public: 
   std::string name_;
-  double vertex_x_;
-  double vertex_y_;
+  geometry_msgs::Point vertex_;
+  bool is_in_back = false;
   double initial_angle_;
+  double distnace_from_main_;
   std::vector<geometry_msgs::Point> transformed_points_;
   std::vector<double> dx_;
   std::vector<double> dy_;
@@ -31,11 +32,10 @@ public:
   ros::Publisher cmd_vel_publisher_;
 
   Robot(std::string name, double vertex_x, double vertex_y, double initial_angle, std::string path_topic, std::string cmd_vel_topic)
-  : name_(name)
   {
-    // name_ = name;
-    vertex_x_ = vertex_x;
-    vertex_y_ = vertex_y;
+    name_ = name;
+    vertex_.x = vertex_x;
+    vertex_.y = vertex_y;
     initial_angle_= initial_angle;
     path_publisher_ = n.advertise<nav_msgs::Path>(path_topic, 1000);
     cmd_vel_publisher_ = n.advertise<geometry_msgs::Twist>(cmd_vel_topic, 1000);

@@ -8,15 +8,18 @@
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Point.h>
 #include <std_msgs/Header.h>
+#include <math.h>
 
 class Robot
 {  
 public: 
   std::string name_;
+  std::string base_footprint_;
   geometry_msgs::Point vertex_;
   bool is_in_back = false;
   double initial_angle_;
   double distnace_from_main_;
+  double angle_to_goal_;
   std::vector<geometry_msgs::Point> transformed_points_;
   std::vector<double> dx_;
   std::vector<double> dy_;
@@ -31,7 +34,7 @@ public:
   ros::Publisher path_publisher_;
   ros::Publisher cmd_vel_publisher_;
 
-  Robot(std::string name, double vertex_x, double vertex_y, double initial_angle, std::string path_topic, std::string cmd_vel_topic)
+  Robot(std::string name, std::string base_footprint, double vertex_x, double vertex_y, double initial_angle, std::string path_topic, std::string cmd_vel_topic)
   {
     name_ = name;
     vertex_.x = vertex_x;
@@ -39,6 +42,7 @@ public:
     initial_angle_= initial_angle;
     path_publisher_ = n.advertise<nav_msgs::Path>(path_topic, 1000);
     cmd_vel_publisher_ = n.advertise<geometry_msgs::Twist>(cmd_vel_topic, 1000);
+    base_footprint_ = base_footprint;
   }
   Robot(){};
 

@@ -25,7 +25,6 @@
 #include <ratio>
 #include <chrono>
 #include <thread>
-#include <tf/transform_listener.h>
 
 namespace mrpf_local_planner{
 
@@ -114,13 +113,9 @@ namespace mrpf_local_planner{
   geometry_msgs::Twist twist;
   geometry_msgs::Point center_coordinates_;                                                                                                                                                                                                                                                                                                                                                            
   std::vector<Robot> robots_;
-  std::vector<double> main_dx_;
-  std::vector<double> main_dy_;
   std::vector<double> dyaw_;
   std::vector<double> dt_;
   double angular_speed_;
-  tf::TransformListener transform_listener_;
-  tf::StampedTransform transform_;
   geometry_msgs::Pose initial_pose;
   std::vector<double> main_distance;
   double max_velocity_;
@@ -139,7 +134,7 @@ namespace mrpf_local_planner{
   void cmdVelPublisherThread(bool start_thread);
   void erasePreviousTrajectory();
   void distanceFromMainTrajectory();
-
+  void getRobotPose();
   };
 };
 

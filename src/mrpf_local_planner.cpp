@@ -146,40 +146,6 @@ MRPFPlannerROS::~MRPFPlannerROS() {}
 		return goal_reached_;
 	}
 
-// Converting quaternion orinetation of trajectory points to RPY.
-void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> path)
-{
-    
-	for (int i = 0; i < path.size(); i++)
-	{
-		tf::Quaternion q(
-		path[i].pose.orientation.x,
-		path[i].pose.orientation.y,
-		path[i].pose.orientation.z,
-		path[i].pose.orientation.w);
-		tf::Matrix3x3 m(q);
-		double r, p, y;
-		m.getRPY(r, p, y);
-		double xx= path[i].pose.position.x;
-		double yy= path[i].pose.position.y;
-		yaw_.push_back(y);
-		main_trajectory_x_.push_back(xx);
-		main_trajectory_y_.push_back(yy);
-  }
-  std::cout<< "Size of the trajectory is "<<main_trajectory_y_.size() << std::endl;
-}
-
-void MRPFPlannerROS::setVelZ()
-{
-
-  cmd_.linear.x= 0;
-  cmd_.linear.y= 0;
-  cmd_.angular.z=0;
-  for (int j = 0; j < robots_.size(); j++)
-  {
-    robots_[j].cmd_vel_publisher_.publish(cmd_);
-  }
-}
   // Smoothening the trajectory by adding waypoints to it.
   void MRPFPlannerROS::trajectorySmoothener()
   {
@@ -210,10 +176,6 @@ void MRPFPlannerROS::setVelZ()
     {
       robots_[j].distnace_from_main_ = (sqrt(pow(robots_[j].vertex_.x - center_coordinates_.x,2) +
       pow(robots_[j].vertex_.y - center_coordinates_.y,2)));
-      if (robots_[j].vertex_.x - center_coordinates_.x <=0)
-      {
-        robots_[j].is_in_back = true;
-      }
     }
   }
 
@@ -222,15 +184,8 @@ void MRPFPlannerROS::setVelZ()
   {
     for (int i = 0; i < robots_.size(); i++)
     { 
-      if (robots_[i].vertex_.x == center_coordinates_.x)
-        {
-          robots_[i].angle_to_goal_ = 0.0;
-        }
-        else
-        {
-          robots_[i].angle_to_goal_ = atan((robots_[i].vertex_.y - center_coordinates_.y) / 
-          (robots_[i].vertex_.x - center_coordinates_.x)); 
-        }
+      robots_[i].angle_to_goal_ = atan2((robots_[i].vertex_.y - center_coordinates_.y), 
+      (robots_[i].vertex_.x - center_coordinates_.x)); 
     }
   
   geometry_msgs::Point point;
@@ -238,26 +193,11 @@ void MRPFPlannerROS::setVelZ()
   {
     for (int j = 0; j < robots_.size(); j++)
     {
-      if (robots_[j].is_in_back)
-        {
-          point.x = main_trajectory_x_[i] - robots_[j].distnace_from_main_ * cos(yaw_[i] + robots_[j].angle_to_goal_);
-          point.y = main_trajectory_y_[i] - robots_[j].distnace_from_main_ * sin(yaw_[i] + robots_[j].angle_to_goal_);
-        }
-      else
-        {
-          point.x = main_trajectory_x_[i] + robots_[j].distnace_from_main_ * cos(yaw_[i]);
-          point.y = main_trajectory_y_[i] + robots_[j].distnace_from_main_ * sin(yaw_[i]);
-        }
-
+      point.x = main_trajectory_x_[i] + robots_[j].distnace_from_main_ * cos(yaw_[i] + robots_[j].angle_to_goal_);
+      point.y = main_trajectory_y_[i] + robots_[j].distnace_from_main_ * sin(yaw_[i] + robots_[j].angle_to_goal_);
       robots_[j].transformed_points_.push_back(point);
     }
   }
-
-  // for (int i = 0; i < main_trajectory_x_.size(); i++)
-  // {
-  //   main_trajectory_x_[i] = main_trajectory_x_[i] * cos(yaw_[i]);
-  //   main_trajectory_y_[i] = main_trajectory_y_[i] * sin(yaw_[i]);
-  // }  
 }
 
 void MRPFPlannerROS::calculateDxAndDy()
@@ -272,11 +212,14 @@ void MRPFPlannerROS::calculateDxAndDy()
   }
     for (int i = 0; i < main_trajectory_x_.size()-1; i++)
     {
-      // main_dx_.push_back(main_trajectory_x_[i+1] - main_trajectory_x_[i]);
-      // main_dy_.push_back(main_trajectory_y_[i+1] - main_trajectory_y_[i]);
-      dyaw_.push_back(yaw_[i+1] - yaw_[i]);
+      for (int j = 0; j < robots_.size(); j++)
+      {
+        if (robots_[j].name_ == "main")
+        {
+          dyaw_.push_back((yaw_[i+1] - yaw_[i]));
+        }
+      }      
     }
-  std::cout << "robots dyaw has "<<dyaw_.size() << "elements" <<std::endl;
   std::cout << "Finished calculating Dx and Dy which were " << robots_[0].dx_.size() << " points"<< std::endl;
 }
 
@@ -287,17 +230,41 @@ void MRPFPlannerROS::calculateDistance()
   {
     for (int j = 0; j < robots_[0].dx_.size(); j++)
     {
-      robots_[i].distance_.push_back(sqrt(pow(robots_[i].dx_[j],2) + pow(robots_[i].dy_[j],2)));
+      if (robots_[i].name_ =="main")
+      {
+        robots_[i].distance_.push_back(sqrt(pow(robots_[i].dx_[j],2) + pow(robots_[i].dy_[j],2)));
+         dt_.push_back(robots_[0].distance_[j]/max_velocity_);
+      }
+      else
+      {
+        robots_[i].distance_.push_back(sqrt(pow(robots_[i].dx_[j],2) + pow(robots_[i].dy_[j],2)));
+      }
     }  
   }
-    for (int i = 0; i < robots_[0].dx_.size(); i++)
-    {
-      // main_distance.push_back(sqrt(pow(main_dx_[i],2) + pow(main_dy_[i],2)));
-      dt_.push_back(robots_[0].distance_[i]/max_velocity_);
-    }
   std::cout << "robots distance has "<<robots_[0].distance_.size() << "elements" <<std::endl;
-  std::cout << "robots dyaw has "<<dt_.size() << "elements" <<std::endl;
+  std::cout << "robots dt has "<<dt_.size() << " elements" <<std::endl;
 }
+
+// Map the velocities from the map frame to the robots' frame.
+void MRPFPlannerROS::velocitiesInRobotFrame()
+  {
+    for (int i = 0; i < robots_.size(); i++)
+    {
+    std::cout<<robots_[i].name_ << " initial angle is " << robots_[i].initial_angle_ <<std::endl;
+    }
+    for (int i = 0; i <robots_.size(); i++)
+    {
+      for (int j = 0; j <robots_[i].dx_.size(); j++)
+      {
+        robots_[i].dx_prime_.push_back(robots_[i].dx_[j] * cos((yaw_[j] + yaw_[j+1])/2)
+        + robots_[i].dy_[j] * sin((yaw_[j] + yaw_[j+1])/2));
+        robots_[i].dy_prime_.push_back(robots_[i].dy_[j] * cos((yaw_[j]+ + yaw_[j+1])/2) 
+        - robots_[i].dx_[j] * sin((yaw_[j] + yaw_[j+1])/2));
+      }
+    }
+    std::cout << "robots dx_prime has "<<robots_[0].dx_prime_.size() << "elements" <<std::endl;
+  }
+
 void MRPFPlannerROS::calculateVelocities()
 {
   for (int i = 0; i < robots_[0].dx_.size(); i++)
@@ -337,25 +304,7 @@ void MRPFPlannerROS::calculateVelocities()
   }
   std::cout << "Finished calculating Vx and Vy which were " << robots_[0].velocity_.size() << " elements" << std::endl;
 }
-// Map the velocities from the map frame to the robots' frame.
-void MRPFPlannerROS::velocitiesInRobotFrame()
-  {
-    for (int i = 0; i < robots_.size(); i++)
-    {
-    std::cout<<robots_[i].name_ << " initial angle is " << robots_[i].initial_angle_ <<std::endl;
-    }
-    for (int i = 0; i <robots_.size(); i++)
-    {
-      for (int j = 0; j <robots_[i].dx_.size(); j++)
-      {
-        robots_[i].dx_prime_.push_back(robots_[i].dx_[j] * cos((yaw_[j] + robots_[i].initial_angle_ + yaw_[j+1] + robots_[i].initial_angle_)/2)
-        + robots_[i].dy_[j] * sin((yaw_[j]+ robots_[i].initial_angle_ + yaw_[j+1]+ robots_[i].initial_angle_)/2));
-        robots_[i].dy_prime_.push_back(robots_[i].dy_[j] * cos((yaw_[j]+ robots_[i].initial_angle_ + yaw_[j+1] + robots_[i].initial_angle_)/2) 
-        - robots_[i].dx_[j] * sin((yaw_[j] + robots_[i].initial_angle_ + yaw_[j+1] + robots_[i].initial_angle_)/2));
-      }
-    }
-    std::cout << "robots dx_prime has "<<robots_[0].dx_prime_.size() << "elements" <<std::endl;
-  }
+
   // A separate thread for publishing the velocities to each robot as well as the base_footprint.
   void MRPFPlannerROS::cmdVelPublisherThread(bool start_thread)
   {
@@ -522,5 +471,39 @@ void MRPFPlannerROS::velocitiesInRobotFrame()
       }
     }
     ROS_INFO("Robots' poses were updated!");
+  }
+
+  // Converting quaternion orinetation of trajectory points to RPY.
+void MRPFPlannerROS::quaternionToRPY (std::vector<geometry_msgs::PoseStamped> path)
+{   
+	for (int i = 0; i < path.size(); i++)
+	{
+		tf::Quaternion q(
+		path[i].pose.orientation.x,
+		path[i].pose.orientation.y,
+		path[i].pose.orientation.z,
+		path[i].pose.orientation.w);
+		tf::Matrix3x3 m(q);
+		double r, p, y;
+		m.getRPY(r, p, y);
+		double xx= path[i].pose.position.x;
+		double yy= path[i].pose.position.y;
+		yaw_.push_back(y);
+		main_trajectory_x_.push_back(xx);
+		main_trajectory_y_.push_back(yy);
+  }
+  std::cout<< "Size of the trajectory is "<<main_trajectory_y_.size() << std::endl;
+}
+
+  void MRPFPlannerROS::setVelZ()
+  {
+
+    cmd_.linear.x= 0;
+    cmd_.linear.y= 0;
+    cmd_.angular.z=0;
+    for (int j = 0; j < robots_.size(); j++)
+    {
+      robots_[j].cmd_vel_publisher_.publish(cmd_);
+    }
   }
 }

@@ -130,7 +130,7 @@ MRPFPlannerROS::~MRPFPlannerROS() {}
     //   goal_reached_ = true;
     // }
     // }
-		return true;
+		return false;
 	}
 
 
@@ -274,8 +274,8 @@ void MRPFPlannerROS::calculateVelocities()
       if (rotation_)
       {
         geometry_msgs::Twist temp;
-        temp.linear.x = robots_[j].dx_prime_[i]/dt_[i];
-        temp.linear.y = robots_[j].dy_prime_[i]/dt_[i];
+        temp.linear.x = std::isnan(robots_[j].dx_prime_[i]/dt_[i]) ? 0 : robots_[j].dx_prime_[i]/dt_[i];
+        temp.linear.y = std::isnan(robots_[j].dy_prime_[i]/dt_[i]) ? 0 : robots_[j].dy_prime_[i]/dt_[i];
         temp.angular.z = dyaw_[i]/dt_[i];
         robots_[j].velocity_.push_back(temp);
       }
@@ -285,17 +285,20 @@ void MRPFPlannerROS::calculateVelocities()
         if (robots_[j].name_=="main")
         {
           geometry_msgs::Twist temp;
-          temp.linear.x = robots_[j].dx_prime_[i]/dt_[i];
-          temp.linear.y = robots_[j].dy_prime_[i]/dt_[i];
+          temp.linear.x = std::isnan(robots_[j].dx_prime_[i]/dt_[i]) ? 0 : robots_[j].dx_prime_[i]/dt_[i];
+          temp.linear.y = std::isnan(robots_[j].dy_prime_[i]/dt_[i]) ? 0 : robots_[j].dy_prime_[i]/dt_[i];
           temp.angular.z = dyaw_[i]/dt_[i];
           robots_[j].velocity_.push_back(temp);
         }
         else
         {
           geometry_msgs::Twist temp;
-          temp.linear.x = cos(robots_[j].initial_angle_) * (robots_[j].dx_[i]/dt_[i]) + sin(robots_[j].initial_angle_) * 
+          temp.linear.x = std::isnan(cos(robots_[j].initial_angle_) * (robots_[j].dx_[i]/dt_[i]) + sin(robots_[j].initial_angle_) * 
+          (robots_[j].dy_[i]/dt_[i])) ? 0 : cos(robots_[j].initial_angle_) * (robots_[j].dx_[i]/dt_[i]) + sin(robots_[j].initial_angle_) * 
           (robots_[j].dy_[i]/dt_[i]);
-          temp.linear.y = cos(robots_[j].initial_angle_) * (robots_[j].dy_[i]/dt_[i]) - sin(robots_[j].initial_angle_) * 
+
+          temp.linear.y = std::isnan(cos(robots_[j].initial_angle_) * (robots_[j].dy_[i]/dt_[i]) - sin(robots_[j].initial_angle_) * 
+          (robots_[j].dx_[i]/dt_[i])) ? 0 : cos(robots_[j].initial_angle_) * (robots_[j].dy_[i]/dt_[i]) - sin(robots_[j].initial_angle_) * 
           (robots_[j].dx_[i]/dt_[i]);
           robots_[j].velocity_.push_back(temp);
         }

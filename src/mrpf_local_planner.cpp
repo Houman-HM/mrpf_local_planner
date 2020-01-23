@@ -90,46 +90,6 @@ MRPFPlannerROS::~MRPFPlannerROS() {}
 		ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
 		return false;
 		}
-
-    // current_time_ = std::chrono::high_resolution_clock::now();
-    // if (!time_updated_)
-    // {
-    //   previous_time_ = std::chrono::high_resolution_clock::now();
-    //   time_updated_ = true;
-    // }
-    // time_difference_ = std::chrono::duration_cast<std::chrono::milliseconds>(current_time_ - previous_time_).count()/1000.0;
-    // // std::cout << "Current time is: " << current_time_ <<std::endl;
-    // // std::cout << "Previous time is: " << previous_time_ << std::endl;
-    // std::cout << "The time difference is " << time_difference_ << "and dt is "<< dt_ <<std::endl;
-		// if (time_difference_ < dt_)
-    // {
-    //   for (int j = 0; j < robots_.size(); j++)
-    //   {
-    //     robots_[j].cmd_vel_publisher_.publish(robots_[j].twist);
-    //   }      
-    // }
-    // else
-    // {
-    //   std::cout <<"Sending a new velocity" << std::endl;
-    //   if (counter_ < yaw_.size() -1)
-    //   {
-    //     for (int j = 0; j < robots_.size(); j++)
-    //     {
-    //     dt_ = robots_[0].distance_[j]/max_velocity_;
-    //     robots_[j].twist.linear.x = max_velocity_ * cos(yaw_[counter_]);
-    //     robots_[j].twist.linear.y = max_velocity_ * sin(yaw_[counter_]);
-    //     robots_[j].cmd_vel_publisher_.publish(robots_[j].twist);
-    //   }
-    //   counter_++;
-    //   previous_time_ = std::chrono::high_resolution_clock::now();
-
-    // }
-    // else
-    // {
-    //   setVelZ();
-    //   goal_reached_ = true;
-    // }
-    // }
 		return false;
 	}
 
@@ -167,7 +127,7 @@ MRPFPlannerROS::~MRPFPlannerROS() {}
       }
       i++;
     }
-    std::cout << "Trajectory was smoothened successfully!" << std::endl;
+      ROS_INFO("Trajectory was smoothened successfully!");
   }
 
   void MRPFPlannerROS::distanceFromMainTrajectory()
@@ -233,7 +193,7 @@ void MRPFPlannerROS::calculateDistance()
       if (robots_[i].name_ =="main")
       {
         robots_[i].distance_.push_back(sqrt(pow(robots_[i].dx_[j],2) + pow(robots_[i].dy_[j],2)));
-         dt_.push_back(robots_[0].distance_[j]/max_velocity_);
+        dt_.push_back(robots_[0].distance_[j]/max_velocity_);
       }
       else
       {

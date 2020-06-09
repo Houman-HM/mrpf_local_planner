@@ -6,4 +6,4 @@ After building, the local planner used by move_base should be set MRPFLocalPlann
 
 ## Details
 The local planner features a robots_configuration YAML file in which the parameters related to each robot in a robot fleet should be set.
-One should set in the robots_configuration YAML the velocity topic and base_footprint parameter for each robot. In addition, the pose of each robot in the base footprint should be mentioned/ 
+One should set in the robots_configuration YAML the velocity topic and base_footprint parameter for each robot. In addition, the pose of each robot in the base footprint should be mentioned.

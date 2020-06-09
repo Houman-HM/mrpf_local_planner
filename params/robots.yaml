@@ -1,0 +1,322 @@
+
+###   rod
+
+Global:
+  center_coordinates: [0.0,0.0]
+  rotation: true
+  max_velocity: 0.2
+   
+Robots:
+- name: robot1
+  vertex: [-0.6, 0.0]
+  initial_angle: 0.0
+  path_topic: path1
+  cmd_vel_topic: clearbot1/cmd_vel
+  base_footprint: /clearbot1_base_footprint
+
+- name: robot2
+  vertex: [0.6,0.0]
+  initial_angle: 0.0
+  path_topic: path2
+  cmd_vel_topic: clearbot2/cmd_vel
+  base_footprint: /clearbot2_base_footprint
+
+
+- name: main
+  vertex: [0.0,-0.0]
+  initial_angle: 0.0
+  path_topic: /main_path
+  cmd_vel_topic: /cmd_vel
+  base_footprint: /base_footprint
+
+# Triangle
+
+# Global:
+#   center_coordinates: [0.0, 0.0]
+#   rotation: true
+#   max_velocity: 0.2
+   
+# Robots:
+# - name: robot1
+#   vertex: [-0.5, 0.6]
+#   initial_angle: 0.0
+#   path_topic: path1
+#   cmd_vel_topic: clearbot1/cmd_vel
+#   base_footprint: /clearbot1_base_footprint
+
+# - name: robot2
+#   vertex: [-0.5,-0.6]
+#   initial_angle: 0.0
+#   path_topic: path2
+#   cmd_vel_topic: clearbot2/cmd_vel
+#   base_footprint: /clearbot2_base_footprint
+
+
+# - name: robot3
+#   vertex: [1.0,0.0]
+#   initial_angle: 0.0
+#   path_topic: path3
+#   cmd_vel_topic: clearbot3/cmd_vel
+#   base_footprint: /clearbot3_base_footprint
+
+
+# - name: main
+#   vertex: [0.0,0.0]
+#   initial_angle: 0.0
+#   path_topic: main_path
+#   cmd_vel_topic: /cmd_vel
+#   base_footprint: /base_footprint
+
+#  Robots:
+# - name: robot1
+#   vertex: [-0.6, 0.25]
+#   initial_angle: -0.394
+#   path_topic: path1
+#   cmd_vel_topic: clearbot1/cmd_vel
+
+# - name: robot2
+#   vertex: [-0.6,-0.25]
+#   initial_angle: -0.394
+#   path_topic: path2
+#   cmd_vel_topic: clearbot2/cmd_vel
+
+# - name: robot3
+#   vertex: [0.6,0.0]
+#   initial_angle: 0.0
+#   path_topic: path3
+#   cmd_vel_topic: clearbot3/cmd_vel
+
+# - name: main
+#   vertex: [0.0,0.0]
+#   initial_angle: 0.0
+#   path_topic: main_path
+#   cmd_vel_topic: /cmd_vel
+
+
+####Square
+
+# Global:
+#   vertices:
+#     1): [-0.6,0.0]
+#     2): [0.6,0.0]
+#   center_coordinates: [-1.5, -1.0]
+#   rotation: true
+#   max_velocity: 0.2
+   
+# Robots:
+# - name: robot1
+#   vertex: [-1.08, -0.55]
+#   initial_angle: 0.0
+#   path_topic: path1
+#   cmd_vel_topic: clearbot1/cmd_vel
+#   base_footprint: /clearbot1_base_footprint
+
+# - name: robot2
+#   vertex: [-1.08,-1.45]
+#   initial_angle: 0.0
+#   path_topic: path2
+#   cmd_vel_topic: clearbot2/cmd_vel
+#   base_footprint: /clearbot2_base_footprint
+
+
+# - name: robot3
+#   vertex: [-1.90,-1.45]
+#   initial_angle: 0.0
+#   path_topic: path3
+#   cmd_vel_topic: clearbot3/cmd_vel
+#   base_footprint: /clearbot3_base_footprint
+
+# - name: robot4
+#   vertex: [-1.90,-0.55]
+#   initial_angle: 0.0
+#   path_topic: path4
+#   cmd_vel_topic: clearbot4/cmd_vel
+#   base_footprint: /clearbot4_base_footprint
+
+# - name: main
+#   vertex: [-1.5,-1.0]
+#   initial_angle: 0.0
+#   path_topic: main_path
+#   cmd_vel_topic: /cmd_vel
+#   base_footprint: /base_footprint
+
+#  Robots:
+# - name: robot1
+#   vertex: [-0.6, 0.25]
+#   initial_angle: -0.394
+#   path_topic: path1
+#   cmd_vel_topic: clearbot1/cmd_vel
+
+# - name: robot2
+#   vertex: [-0.6,-0.25]
+#   initial_angle: -0.394
+#   path_topic: path2
+#   cmd_vel_topic: clearbot2/cmd_vel
+
+# - name: robot3
+#   vertex: [0.6,0.0]
+#   initial_angle: 0.0
+#   path_topic: path3
+#   cmd_vel_topic: clearbot3/cmd_vel
+
+# - name: main
+#   vertex: [0.0,0.0]
+#   initial_angle: 0.0
+#   path_topic: main_path
+#   cmd_vel_topic: /cmd_vel
+
+
+# Global:
+#   center_coordinates: [0.0,0.0]
+#   rotation: true
+#   max_velocity: 0.2
+
+# Robots:
+# - name: robot1
+#   vertex: [0.5, 0.5]
+#   initial_angle: 0.0
+#   path_topic: path1
+#   cmd_vel_topic: clearbot1/cmd_vel
+#   base_footprint: /clearbot1_base_footprint
+
+# - name: robot2
+#   vertex: [0.5, -0.5]
+#   initial_angle: 0.0
+#   path_topic: path2
+#   cmd_vel_topic: clearbot2/cmd_vel
+#   base_footprint: /clearbot2_base_footprint
+
+# - name: robot3
+#   vertex: [-0.5, -0.5]
+#   initial_angle: 0.0
+#   path_topic: path3
+#   cmd_vel_topic: clearbot3/cmd_vel
+#   base_footprint: /clearbot3_base_footprint
+
+# - name: robot4
+#   vertex: [-0.5, 0.5]
+#   initial_angle: 0.0
+#   path_topic: path4
+#   cmd_vel_topic: clearbot4/cmd_vel
+#   base_footprint: /clearbot4_base_footprint
+
+# - name: main
+#   vertex: [0.0,0.0]
+#   initial_angle: 0.0
+#   path_topic: main_path
+#   cmd_vel_topic: /cmd_vel
+#   base_footprint: /base_footprint
+
+### Hexagon
+
+# Global:
+#   vertices:
+#     1): [0.0,0.0]
+#     2): [0.0,0.0]
+#   center_coordinates: [0.0, 0.0]
+#   rotation: true
+#   max_velocity: 0.2
+   
+# Robots:
+# - name: robot1
+#   vertex: [0.6, -0.4]
+#   initial_angle: 0.0
+#   path_topic: path1
+#   cmd_vel_topic: clearbot1/cmd_vel
+#   base_footprint: /clearbot1_base_footprint
+
+# - name: robot2
+#   vertex: [0.6,0.4]
+#   initial_angle: 0.0
+#   path_topic: path2
+#   cmd_vel_topic: clearbot2/cmd_vel
+#   base_footprint: /clearbot2_base_footprint
+
+# - name: robot3
+#   vertex: [0.0, 0.7]
+#   initial_angle: 0.0
+#   path_topic: path3
+#   cmd_vel_topic: clearbot3/cmd_vel
+#   base_footprint: /clearbot3_base_footprint
+
+# - name: robot4
+#   vertex: [0.0, -0.7]
+#   initial_angle: 0.0
+#   path_topic: path4
+#   cmd_vel_topic: clearbot4/cmd_vel
+#   base_footprint: /clearbot4_base_footprint
+
+# - name: robot5
+#   vertex: [-0.6, 0.4]
+#   initial_angle: 0.0
+#   path_topic: path5
+#   cmd_vel_topic: clearbot5/cmd_vel
+#   base_footprint: /clearbot5_base_footprint
+
+# - name: robot4
+#   vertex: [-0.6, -0.4]
+#   initial_angle: 0.0
+#   path_topic: path6
+#   cmd_vel_topic: clearbot6/cmd_vel
+#   base_footprint: /clearbot6_base_footprint
+
+# - name: main
+#   vertex: [0.0,0.0]
+#   initial_angle: 0.0
+#   path_topic: main_path
+#   cmd_vel_topic: /cmd_vel
+#   base_footprint: /base_footprint
+
+
+############ Concave
+#   Global:
+#   vertices:
+#     1): [0.0,0.0]
+#     2): [0.0,0.0]
+#   center_coordinates: [0.0, 0.0]
+#   rotation: true
+#   max_velocity: 0.2
+   
+# Robots:
+# - name: robot1
+#   vertex: [0.6, 0.4]
+#   initial_angle: 0.0
+#   path_topic: path1
+#   cmd_vel_topic: clearbot1/cmd_vel
+#   base_footprint: /clearbot1_base_footprint
+
+# - name: robot2
+#   vertex: [0.6,-0.4]
+#   initial_angle: 0.0
+#   path_topic: path2
+#   cmd_vel_topic: clearbot2/cmd_vel
+#   base_footprint: /clearbot2_base_footprint
+
+
+# - name: robot3
+#   vertex: [0.2,-0.55]
+#   initial_angle: 0.0
+#   path_topic: path3
+#   cmd_vel_topic: clearbot3/cmd_vel
+#   base_footprint: /clearbot3_base_footprint
+
+# - name: robot4
+#   vertex: [-0.4,0.49]
+#   initial_angle: 0.0
+#   path_topic: path4
+#   cmd_vel_topic: clearbot4/cmd_vel
+#   base_footprint: /clearbot4_base_footprint
+
+# - name: robot5
+#   vertex: [0.0, 0.6]
+#   initial_angle: 0.0
+#   path_topic: path5
+#   cmd_vel_topic: clearbot5/cmd_vel
+#   base_footprint: /clearbot5_base_footprint
+
+# - name: main
+#   vertex: [0.0,0.0]
+#   initial_angle: 0.0
+#   path_topic: main_path
+#   cmd_vel_topic: /cmd_vel
+#   base_footprint: /base_footprint
